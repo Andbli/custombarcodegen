@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EAN Admin Checker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #34495e;
+            color: white;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            color: #2c3e50;
+            text-align: left;
+            max-width: 600px;
+            width: 100%;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        h1 {
+            font-size: 24px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 5px 0;
+        }
+        .error {
+            color: red;
+        }
+        .valid {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>EAN Admin Checker</h1>
+        <button id="check-eans">Check EANs</button>
+        <ul id="results"></ul>
+    </div>
+
+    <script>
+        function isValidEAN13(ean) {
+            if (ean.length !== 13 || isNaN(ean)) return false;
+            
+            let sum = 0;
+            for (let i = 0; i < 12; i++) {
+                sum += parseInt(ean[i]) * (i % 2 === 0 ? 1 : 3);
+            }
+            let checkDigit = (10 - (sum % 10)) % 10;
+            return checkDigit === parseInt(ean[12]);
+        }
+
+        function checkEANs() {
+            fetch('ean.txt')
+                .then(response => response.text())
+                .then(data => {
+                    const eanList = data.split('\n').map(ean => ean.trim()).filter(ean => ean !== "");
+                    const resultsContainer = document.getElementById('results');
+                    resultsContainer.innerHTML = '';
+
+                    const eanSet = new Set();
+                    const errors = [];
+                    const duplicates = [];
+
+                    eanList.forEach((ean, index) => {
+                        if (!isValidEAN13(ean)) {
+                            errors.push({ ean, index, reason: 'Invalid format or checksum' });
+                        } else if (eanSet.has(ean)) {
+                            duplicates.push({ ean, index });
+                        } else {
+                            eanSet.add(ean);
+                        }
+                    });
+
+                    if (errors.length === 0 && duplicates.length === 0) {
+                        resultsContainer.innerHTML = '<li class="valid">All EANs are valid and unique.</li>';
+                    } else {
+                        if (errors.length > 0) {
+                            errors.forEach(error => {
+                                resultsContainer.innerHTML += `<li class="error">Line ${error.index + 1}: ${error.ean} - ${error.reason}</li>`;
+                            });
+                        }
+                        if (duplicates.length > 0) {
+                            duplicates.forEach(dup => {
+                                resultsContainer.innerHTML += `<li class="error">Line ${dup.index + 1}: ${dup.ean} - Duplicate found</li>`;
+                            });
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                    alert('Failed to load ean.txt');
+                });
+        }
+
+        document.getElementById('check-eans').addEventListener('click', checkEANs);
+    </script>
+</body>
+</html>
