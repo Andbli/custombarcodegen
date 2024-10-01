@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barcode Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha384-k6RqeWeci5ZR/Lv4MR0sA0FfDOMjJ1Pt0Lxt7ze/m7A8zp0DOWc9TOaYp/V9dTu" crossorigin="anonymous">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #2c3e50;
+            color: white;
+        }
+        .barcode-container {
+            text-align: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        #barcode {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        #count-label {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        #loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            color: #2c3e50;
+        }
+        #next-button, #prev-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px;
+            transition: background-color 0.3s;
+        }
+        #next-button:hover, #prev-button:hover {
+            background-color: #2980b9;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .toolbar-button {
+            background-color: #ff4757;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+        }
+        .toolbar-button:hover {
+            background-color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <div class="barcode-container">
+        <svg id="barcode"></svg>
+        <div id="count-label"></div>
+        <div id="loading">Loading...</div>
+        <button id="prev-button">Previous</button>
+        <button id="next-button">Next</button>
+    </div>
+    <div class="toolbar">
+        <button id="check-validity" class="toolbar-button">Check Validity</button>
+        <button id="reset-progress" class="toolbar-button">Reset</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+    <script>
+        let eanList = [];
+        let currentIndex = 0;
+        let totalBarcodes = 0;
+        const loadingIndicator = document.getElementById('loading');
+        const countLabel = document.getElementById('count-label');
+
+        function fetchEANs() {
+            loadingIndicator.style.display = 'block';
+            fetch('ean.txt')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    const newEanList = data.split('\n').map(ean => ean.trim()).filter(ean => ean.length === 13);
+                    eanList = newEanList;
+                    totalBarcodes = eanList.length;
+                    currentIndex = 0; // Reset to first barcode
+                    updateBarcode();
+                })
+                .catch(error => {
+                    console.error('Error fetching EANs:', error);
+                    alert('Error loading EANs. Please try again later.');
+                })
+                .finally(() => {
+                    loadingIndicator.style.display = 'none';
+                });
+        }
+
+        function updateBarcode() {
+            if (totalBarcodes === 0) {
+                countLabel.textContent = 'No barcodes available';
+                return;
+            }
+            const ean = eanList[currentIndex];
+            JsBarcode("#barcode", ean, {
+                format: "EAN13",
+                width: 2,
+                height: 100,
+                displayValue: true,
+                background: "white",
+                lineColor: "black",
+                textColor: "black",
+                fontSize: 14,
+                textMargin: 2,
+                marginTop: 10,
+                marginBottom: 10
+            });
+            countLabel.textContent = `${currentIndex + 1}/${totalBarcodes}`;
+            saveProgress();
+        }
+
+        function saveProgress() {
+            localStorage.setItem('currentIndex', currentIndex);
+            localStorage.setItem('lastUpdated', new Date().toISOString());
+        }
+
+        function loadProgress() {
+            const savedIndex = localStorage.getItem('currentIndex');
+            const lastUpdated = new Date(localStorage.getItem('lastUpdated'));
+            const now = new Date();
+            const isSameDay = lastUpdated.toDateString() === now.toDateString();
+
+            if (savedIndex !== null && isSameDay) {
+                currentIndex = parseInt(savedIndex, 10);
+            } else {
+                currentIndex = 0; // Reset if no saved progress or a new day
+            }
+            updateBarcode();
+        }
+
+        function resetProgress() {
+            localStorage.removeItem('currentIndex');
+            localStorage.removeItem('lastUpdated');
+            currentIndex = 0;
+            updateBarcode();
+        }
+
+        document.getElementById('next-button').addEventListener('click', () => {
+            if (currentIndex < totalBarcodes - 1) {
+                currentIndex++;
+                updateBarcode();
+            }
+        });
+
+        document.getElementById('prev-button').addEventListener('click', () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateBarcode();
+            }
+        });
+
+        document.getElementById('check-validity').addEventListener('click', () => {
+            window.open('http://custombarcode.blindheim.online/error.html', '_blank');
+        });
+
+        document.getElementById('reset-progress').addEventListener('click', resetProgress);
+
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowRight' || event.key === ' ') {
+                document.getElementById('next-button').click();
+            } else if (event.key === 'ArrowLeft') {
+                document.getElementById('prev-button').click();
+            }
+        });
+
+        function pollForUpdates() {
+            setInterval(fetchEANs, 10000); // Check for updates every 10 seconds
+        }
+
+        // Initialize the application
+        fetchEANs();
+        loadProgress();
+        pollForUpdates();
+    </script>
+</body>
+</html>
