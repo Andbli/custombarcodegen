@@ -1,5 +1,5 @@
 
-![Logo](https://i.imgur.com/OtvlGq0.png)
+![Logo](https://github.com/Andbli/custombarcodegen/blob/main/logo.png?raw=true)
 
 
 
