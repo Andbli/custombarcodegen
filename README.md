@@ -12,5 +12,5 @@ CBG is a private app developed to display every barcode in "ean.txt" on a .html 
 ## Authors
 
 - [ Main Developer | @AndBli](https://github.com/Andbli)
-- [  Developer | @Jorklo08](https://github.com/Jorklo08)
+- [  Doing nothing: | @Jorklo08](https://github.com/Jorklo08)
 
